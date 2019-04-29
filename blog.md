@@ -10,35 +10,35 @@ A `Transaction` records the transfer of an asset (e.g. Coin) from one account
 to another.
 
 ## Transaction
-The transaction class consists of the `to` and `from` addresses and the
+The transaction consists of the `to` and `from` addresses and the
 `amount` transferred between them.
 
 ```javascript
-class Transaction {
-  constructor({fromAddress, toAddress, amount}){
-    this.fromAddress = fromAddress;
-    this.toAddress = toAddress;
-    this.amount = amount;
-  }
+{
+  fromAddress: '',
+  toAddress: '',
+  amount: 0,
+  publicKey: '',
+  signature: ''
 }
 ```
 
 ## Block
-The Block calss contains a set of `transactions`. Furthermore, it contains a
+The Block contains a set of `transactions`. Furthermore, it contains a
 timestamp. Finally, the Block contains a cryptographic hash of its contents,
 which includes the hash of the previous block.
 
 ```javascript
-class Block {
-  constructor({timestamp, transactions, previousHash = ''}) {
-    this.previousHash = previousHash;
-    this.timestamp = timestamp;
-    this.transactions = transactions;
-    this.hash = this.calculateHash();
-    this.nonce = 0;
-  }
+{
+  previousHash: ``,
+  timestamp: '',
+  transactions: [],
+  hash: ''
+  nonce: '',
 }
 ```
 It's this inclusion of the hash of the previous block that leads to the `chain`
 characteristic of Blockchain.
+
+## Gossiping
 
