@@ -1,133 +1,142 @@
-import Transaction from './transaction';
-import Block from './block';
+import pino from 'pino';
+const logger = pino();
+logger.level = 'debug';
+import transaction from './transaction';
+import block from './block';
 
 const DEFAULT_REWARD = 10;
-const DEFAULT_DIFFICULTY = 4;
+const DEFAULT_DIFFICULTY = 3;
 const BLOCK_SIZE = 10;
 
-// Define the Blockchain
-//
-class Blockchain {
-  /**
-   * @param {*} genesisNode URL on which you start the blockchain. Is set to port 4000 with global var.
-   */
-  constructor({genesisNode, difficulty = DEFAULT_DIFFICULTY, reward = DEAFULT_REWARD}) {
-    this.currentBlock = this.createGenesisBlock();
-    this.chain = [];
-    this.nodes = [+genesisNode]
-    this.difficulty = difficulty;
-    this.pendingTransactions = [];
-    this.miningReward = reward;
-  }
+let chain,
+  currentBlock,
+  initialDifficulty;
 
-  createGenesisBlock() {
-    return new Block( {
-      blockSize: BLOCK_SIZE,
-      timestamp: Date.parse("2019-01-01"),
-      previousHash: "0"
-    });
-  }
+let pendingTransactions = [];
 
-  // Add a new node to the list of active nodes
-  // Simulate the network by putting each node on a different port
-  //
-  addNode(port) {
-    if (!this.nodes.includes(port)) {
-      this.nodes.push(port);
+function createGenesisBlock() {
+  return block( {
+    difficulty: initialDifficulty,
+    blockSize: BLOCK_SIZE,
+    timestamp: Date.parse("2019-01-01"),
+    previousHash: "0"
+  });
+}
 
-      // Implement gossiping to share info on new nodes constantly
-      // Too complex to implement here
-      // Iterate over the nodes we know and send each a msg about new node
+function updateBlockchain(newChain) {
+  chain = newChain;
+}
+
+function getLatestBlock() {
+  return chain[this.chain.length - 1];
+}
+
+function addBlock(block) {
+  for(let tx of block.transactions) {
+    for(let i = pendingTransactions.length - 1; i >= 0; i--) {
+      if(tx.signature === pendingTransactions[i].signature) {
+        pendingTransactions.splice(i, 1);
+        break;
+      }
     }
   }
+  chain.set(currentBlock.hash, currentBlock);
+}
 
-  removeNode(port) {
-    nodes = nodes.filter(node => node !== port)
+function addTransaction(transaction){
+  logger.debug('Function: addTransaction');
+  if(!transaction.validate()) {
+    return;
   }
-
-  retrieveNodes() {
-    return this.nodes;
-  }
-
-  updateBlockchain(newChain) {
-    this.chain = newChain;
-  }
-
-  getLatestBlock() {
-    return this.chain[this.chain.length - 1];
-  }
-/*
-  minePendingTransactions(miningRewardAddress) {
-    // Create a block containing all pending transactions
-    let block = new Block({
+  pendingTransactions.push(transaction);
+  if(pendingTransactions.length >= BLOCK_SIZE) { 
+    currentBlock = block({
+      difficulty: initialDifficulty,
+      blockSize: pendingTransactions.length,
       timestamp: Date.now(),
-      transactions: this.pendingTransactions,
-      previousHash: this.getLatestBlock().hash
+      previousHash: currentBlock.hash,
+      transactions: [...pendingTransactions],
     });
-    block.mineBlock(this.difficulty);
-
-    console.log('Block successfully mined!');
-    this.chain.push(block);
-
-    this.pendingTransactions = [
-      new Transaction({to: miningRewardAddress, amount: this.miningReward})
-    ];
-  } */
-
-  addTransaction(transaction){
-    if(this.currentBlock.addTransaction(this, transaction)) {
-      this.currentBlock.mineBlock(this.difficulty);
-      console.log('Block successfully mined!');
-      this.chain.push(this.currentBlock);
-      this.currentBlock = new Block({
-        blockSize: BLOCK_SIZE,
-        timestamp: Date.now(),
-        previousHash: this.currentBlock.hash
-      });
-    }
+    // Add the block to the chain
+    addBlock(currentBlock);
   }
+}
 
-  // Getting the balance of tokens at an address involves iterating over the entire chain
-  //
-  getAccountBalance(account){
-    let balance = 0;
+// Getting the balance of tokens at an address involves iterating over the entire chain
+//
+function getAccountBalance(account){
+  let balance = 0;
 
-    // Iterate over the blocks in the chain
-    for(const block of this.chain) {
-      // Iterate over the transactions in the block
-      debugger;
-      for(const trans of block.transactions) {
-        if(trans.from === account) {
-          balance -= trans.amount;
-        }
-        if(trans.to === account) {
-          balance += trans.amount;
-        }
+  // Iterate over the blocks in the chain
+  for(const block of this.chain.values()) {
+    // Iterate over the transactions in the block
+    for(const trans of block.transactions) {
+      if(trans.from === account) {
+        balance -= trans.amount;
+      }
+      if(trans.to === account) {
+        balance += trans.amount;
       }
     }
-    return balance;
   }
+  return balance;
+}
 
-  // For validation purposes only - not needed operationally
-  validateChain() {
-    for (let i = 1; i < this.chain.length; i++){
-      const currentBlock = this.chain[i];
-      const previousBlock = this.chain[i - 1];
+// Returns true if the header is valid
+//
+function validateBlockHdr(block) {
+  if(block.calculateHash(block) != block.hash) {
+    return false;
+  }
+  if(!chain.get(block.previousHash)) {
+    return false;
+  }
+  return true;
+}
 
-      if (currentBlock.hash !== currentBlock.calculateHash()) {
-        return false;
-      }
+// Validate this block
+function validateBlock(block) {
+  if(!validateBlockHdr(block)) {
+    return false;
+  }
+  return true;
+}
 
-      if (currentBlock.previousHash !== previousBlock.hash) {
-        return false;
-      }
+
+// For validation purposes only - not needed operationally
+function validateChain() {
+  let skipGenesis = true;
+  for(const block of chain.values()) {
+    if(skipGenesis) {
+      skipGenesis = false;
+      continue;
     }
-    return true;
+    if(!validateBlock(block)) {
+      return false;
+    }
   }
+  return true;
+}
+
+function blockchain({genesisNode, difficulty = DEFAULT_DIFFICULTY, reward = DEAFULT_REWARD}) {
+  initialDifficulty = difficulty;
+  currentBlock = createGenesisBlock();
+  chain = new Map();
+  let api = {
+    difficulty: initialDifficulty,
+    miningReward: reward,
+    chain: chain,
+    currentBlock: currentBlock,
+    addTransaction: addTransaction,
+    getAccountBalance: getAccountBalance,
+    validateBlock: validateBlock,
+    validateChain: validateChain,
+  }
+  return api;
 }
 
 // Export the Interface 
 //
 export {
-  Block, Transaction, Blockchain
+  block, transaction, blockchain
 }

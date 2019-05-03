@@ -4,9 +4,11 @@ import nodeM from './node';
 const fastify = fastifyM({ logger: true })
 
 function updateTransactions(request) {
+  console.log('Update transactions');
 }
 
 function updateChain(request) {
+  console.log('Update chain');
 }
 
 // Declare routes
@@ -45,3 +47,5 @@ if(process.argv.length > 2) {
 
 let node = nodeM(seeds);
 start(node);
+
+node.send("TEST");

@@ -27,6 +27,26 @@ function updateNodeList(request) {
       }
     }
 
+// Send a message to all of the nodes in the network
+//
+async function send(msg) {
+  for(let [key, node] of nodeList) {
+    if(key !== id) {            // Don't send to ourself
+      let url = `http://localhost:${node.port}/transaction`;
+        try {
+          let response = await axios.post(url, msg);
+          let data = response.data;          // Might want to check for ACK?
+          response = true;
+        }
+        catch(err) {
+          console.log(err);
+        }
+    }
+  }
+}
+
+// Send the list of active nodes to all other nodes
+//
 async function sendNodeList() {
   let response = false;
   if(nodeListUpdated) {
@@ -72,6 +92,7 @@ function start(port) {
     timestamp: Date.now(),
     port: port,
   });
+  setInterval(heartbeat, HEARTBEAT_PERIOD);
 }
 
 // Heartbeat function to contact other nodes
@@ -95,6 +116,7 @@ function node(initSeeds) {
     nodeList: nodeList,
     start: start,
     updateNodeList: updateNodeList,
+    send: send,
   };
 
   seeds = initSeeds || [];
@@ -103,7 +125,6 @@ function node(initSeeds) {
     throw new TypeError('Seeds must be an array')
   }
 
-  setInterval(heartbeat, HEARTBEAT_PERIOD);
   return api;
 }
 

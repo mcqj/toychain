@@ -1,6 +1,6 @@
 import nacl from 'tweetnacl';
 import nacl_util from 'tweetnacl-util';
-import { Transaction, Block, Blockchain } from './bc.mjs';
+import { transaction, block, blockchain } from './bc.mjs';
 
 const NODE1 = 4000;
 const NODE2 = 4002;
@@ -35,20 +35,12 @@ class User {
   }
 }
 
-
-// As Node 1, create a new Blockchain
-//
-let fathomChain = new Blockchain({genesisNode: NODE1, difficulty: DIFFICULTY, reward: MINING_REWARD});
-
-// Add a second Node
-fathomChain.addNode(NODE2);
-
 function addTransactions(numTxs, from, to, amount, miner) {
   // Let's do some transactions
   for(let i = 0; i < numTxs; i++) {
     // Add a transaction to the chain, transferring coins from one user to another
-    fathomChain.addTransaction(
-      new Transaction({
+    toyChain.addTransaction(
+      transaction({
         from: from.address,
         to: to.address,
         nonce: from.nonce,
@@ -61,8 +53,10 @@ function addTransactions(numTxs, from, to, amount, miner) {
 }
 
 function logChain() {
-  console.log(JSON.stringify(fathomChain.chain, null, 2));
+  console.log(JSON.stringify(toyChain.chain, null, 2));
 };
+
+let toyChain = blockchain({difficulty: DIFFICULTY, reward: MINING_REWARD});
 
 logChain();
 
@@ -73,6 +67,8 @@ let miner = new User(MINER);
 addTransactions(15, user1, user2, 100, user1);
 addTransactions(15, user2, user1, 25, miner);
 
-console.log(`${user1.name}'s (0x${user1.address}) balance is ${fathomChain.getAccountBalance(user1.address)}`);
-console.log(`${user2.name}'s (0x${user2.address}) balance is ${fathomChain.getAccountBalance(user2.address)}`);
-console.log(`${miner.name}'s (0x${miner.address}) balance is ${fathomChain.getAccountBalance(miner.address)}`);
+console.log(`${user1.name}'s (0x${user1.address}) balance is ${toyChain.getAccountBalance(user1.address)}`);
+console.log(`${user2.name}'s (0x${user2.address}) balance is ${toyChain.getAccountBalance(user2.address)}`);
+console.log(`${miner.name}'s (0x${miner.address}) balance is ${toyChain.getAccountBalance(miner.address)}`);
+
+console.log(`Validate Chain returns ${toyChain.validateChain()}`);

@@ -1,26 +1,31 @@
 import nacl from 'tweetnacl';
 import { TextEncoder, TextDecoder } from 'util';
 
-// Define a Transaction
-//
-class Transaction {
-  constructor({from, to, nonce, amount, publicKey, secretKey}) {
-    const encoder = new TextEncoder();
-    this.from = from;
-    this.to = to;
-    this.nonce = nonce;
-    this.amount = amount;
-    this.publicKey = publicKey;
-    let msgArray = encoder.encode('' + this.from + this.to + this.nonce + this.amount + this.publicKey);
-    this.signature = nacl.sign.detached(msgArray, secretKey);
-    console.log(this);
-  }
+function transaction({from, to, amount, publicKey, secretKey}) {
+  const encoder = new TextEncoder();
+  let salt = Array.prototype.map.call(new Uint8Array(nacl.randomBytes(10)), x => ('00' + x.toString(16)).slice(-2)).join('');
 
-  validate() {
-    const encoder = new TextEncoder();
-    let msgArray = encoder.encode('' + this.from + this.to + this.nonce + this.amount + this.publicKey);
-    return  nacl.sign.detached.verify(msgArray, this.signature, this.publicKey);
-  }
+  let msgArray = encoder.encode('' + from + to + salt + amount + publicKey);
+  let signature = nacl.sign.detached(msgArray, secretKey);
+
+  let api = {
+    from: from,
+    to: to,
+    salt: salt,
+    amount: amount,
+    publicKey: publicKey,
+    secretKey: secretKey,
+    msgArray: msgArray,
+    signature: signature,
+
+    validate: function() {
+      const encoder = new TextEncoder();
+      let vmsgArray = encoder.encode('' + from + to + salt + amount + publicKey);
+      return  nacl.sign.detached.verify(vmsgArray, signature, publicKey);
+    },
+  };
+
+  return api;
 }
 
-export default Transaction;
+export default transaction;
