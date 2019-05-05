@@ -2,9 +2,6 @@ import nacl from 'tweetnacl';
 import nacl_util from 'tweetnacl-util';
 import { transaction, block, blockchain } from './bc.mjs';
 
-const NODE1 = 4000;
-const NODE2 = 4002;
-
 const DIFFICULTY = 3;
 const MINING_REWARD = 10;
 
@@ -21,7 +18,7 @@ function createKey() {
 }
 
 function buf2hex(buffer) { // buffer is an ArrayBuffer
-  return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+  return [].slice.call(buffer).map(x => x.toString(16)).join('');
 }
 
 class User {
@@ -39,16 +36,15 @@ function addTransactions(numTxs, from, to, amount, miner) {
   // Let's do some transactions
   for(let i = 0; i < numTxs; i++) {
     // Add a transaction to the chain, transferring coins from one user to another
-    toyChain.addTransaction(
-      transaction({
-        from: from.address,
-        to: to.address,
-        nonce: from.nonce,
-        amount: amount,
-        publicKey: from.publicKey,
-        secretKey: from.secretKey
-      })
-    );
+    let tx = transaction({
+      from: from.address,
+      to: to.address,
+      nonce: from.nonce,
+      amount: amount,
+      publicKey: from.publicKey,
+    });
+    tx.sign(from.secretKey);
+    toyChain.addTransaction(tx);
   }
 }
 

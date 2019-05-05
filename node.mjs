@@ -1,5 +1,11 @@
+import pino from 'pino';
+const logger = pino({
+  prettyPrint: { colorize: true }
+});
+logger.level = 'info';
 import uuid from 'uuid';
 import axios from 'axios';
+import { transaction, block } from './bc';
 
 const HEARTBEAT_PERIOD = 3 * 1000;
 const NODE_TIMEOUT = 10 * 1000;
@@ -10,7 +16,7 @@ let id = uuid(),
   seeds= [];
 
 function updateNodeList(request) {
-      console.log(request.body);
+      logger.debug(request.body);
       let newNodeList = new Map(Object.entries(request.body));
       // Merge the two nodeLists to create the latest set of information
       for(let [key, newNode] of newNodeList) {
@@ -33,14 +39,14 @@ async function send(msg) {
   for(let [key, node] of nodeList) {
     if(key !== id) {            // Don't send to ourself
       let url = `http://localhost:${node.port}/transaction`;
-        try {
-          let response = await axios.post(url, msg);
-          let data = response.data;          // Might want to check for ACK?
-          response = true;
-        }
-        catch(err) {
-          console.log(err);
-        }
+      try {
+        let response = await axios.post(url, msg);
+        let data = response.data;          // Might want to check for ACK?
+        response = true;
+      }
+      catch(err) {
+        logger.error(err);
+      }
     }
   }
 }
@@ -61,17 +67,16 @@ async function sendNodeList() {
         }
         catch(err) {
           if(node.timestamp + NODE_TIMEOUT <= Date.now()) {
-            console.log(`Remove node: ${key} - ${node}`);
+            logger.debug(`Remove node: ${key} - ${node}`);
             nodeRemovalList.set(key, node);
           } else {
-            console.log(err);
+            logger.error(err);
           }
         }
       }
     }
     for(let [key, node] of nodeRemovalList) {
-      let xx = nodeList.delete(key);
-      console.log(`XX ${key} - ${xx}`);
+      nodeList.delete(key);
     }
   }
   if(!response) {   // if none of the nodes in the list respond, try contacting seeds
@@ -81,7 +86,25 @@ async function sendNodeList() {
         let response = await axios.post(url, Object.assign({}, ...[...nodeList.entries()].map(([k, v]) => ({[k]: v}))));
       }
       catch(err) {
-        console.log(err);
+        logger.error(err);
+      }
+    }
+  }
+}
+
+async function sendTransaction(tx) {
+  for(let [key, node] of nodeList) {
+    debugger;
+    // Don't send to ourself or repeat
+    if(key !== id && !tx.nodePorts.find((port) => port === node.port)) {
+      let url = `http://localhost:${node.port}/transaction`;
+      try {
+        tx.nodePorts.push(node.port);
+        logger.debug(`Send ${tx.signature} to ${node.port}`);
+        let response = await axios.post(url, tx.serialize());
+      }
+      catch(err) {
+        logger.error(err);
       }
     }
   }
@@ -98,8 +121,6 @@ function start(port) {
 // Heartbeat function to contact other nodes
 //
 function heartbeat() {
-  console.log('Send Updates');
-  console.log(nodeList);
   // Update the timestamp of this node
   let node = nodeList.get(id);
   node.timestamp = Date.now();
@@ -117,6 +138,7 @@ function node(initSeeds) {
     start: start,
     updateNodeList: updateNodeList,
     send: send,
+    sendTransaction: sendTransaction,
   };
 
   seeds = initSeeds || [];

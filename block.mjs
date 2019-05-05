@@ -1,3 +1,8 @@
+import pino from 'pino';
+const logger = pino({
+  prettyPrint: { colorize: true }
+});
+logger.level = 'debug';
 import SHA256 from 'crypto-js/sha256';
 
 function calculateHash(block) {
@@ -13,16 +18,16 @@ function mineBlock(block) {
     block.nonce++;
     block.hash = calculateHash(block);
   }
-  console.log(`BLOCK MINED hash: ${block.hash} nonce: ${block.nonce}`);
+  logger.debug(`BLOCK MINED hash: ${block.hash} nonce: ${block.nonce}`);
 }
 
 // return true if the block should be closed and mined - right now that's a size measure
 function addTransaction(bc, transaction) {
   if(!transaction.validate()) {
-    console.log(`Invalid Transaction - Signature invalid ${JSON.stringify(transaction)}`);
+    logger.debug(`Invalid Transaction - Signature invalid ${JSON.stringify(transaction)}`);
     return false;
   } else if(bc.getAccountBalance(transaction.from) < transaction.amount) {
-    console.log(`Invalid Transaction - From account has insufficient funds ${JSON.stringify(transaction)}`);
+    logger.debug(`Invalid Transaction - From account has insufficient funds ${JSON.stringify(transaction)}`);
     // return false;
   }
   this.transactions.push(transaction);

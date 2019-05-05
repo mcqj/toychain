@@ -1,5 +1,7 @@
 import pino from 'pino';
-const logger = pino();
+const logger = pino({
+  prettyPrint: { colorize: true }
+});
 logger.level = 'debug';
 import transaction from './transaction';
 import block from './block';
@@ -46,7 +48,12 @@ function addBlock(block) {
 function addTransaction(transaction){
   logger.debug('Function: addTransaction');
   if(!transaction.validate()) {
-    return;
+    return false;
+  }
+  logger.debug(`pendingTransactions.length = ${pendingTransactions.length}`);
+  // Don't add to pending transaction queue if its already there
+  if(pendingTransactions.find(tx => Buffer.from(tx.signature).compare(Buffer.from(transaction.signature)) ===0)) {
+    return false;
   }
   pendingTransactions.push(transaction);
   if(pendingTransactions.length >= BLOCK_SIZE) { 
@@ -60,6 +67,7 @@ function addTransaction(transaction){
     // Add the block to the chain
     addBlock(currentBlock);
   }
+  return true;
 }
 
 // Getting the balance of tokens at an address involves iterating over the entire chain
