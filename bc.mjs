@@ -21,6 +21,7 @@ function createGenesisBlock() {
     difficulty: initialDifficulty,
     blockSize: BLOCK_SIZE,
     timestamp: Date.parse("2019-01-01"),
+    height: 0,
     previousHash: "0"
   });
 }
@@ -29,11 +30,8 @@ function updateBlockchain(newChain) {
   chain = newChain;
 }
 
-function getLatestBlock() {
-  return chain[this.chain.length - 1];
-}
-
 function addBlock(block) {
+  // Clear transactions from the pending list if they are in the new block
   for(let tx of block.transactions) {
     for(let i = pendingTransactions.length - 1; i >= 0; i--) {
       if(tx.signature === pendingTransactions[i].signature) {
@@ -42,7 +40,8 @@ function addBlock(block) {
       }
     }
   }
-  chain.set(currentBlock.hash, currentBlock);
+  chain.set(block.hash, block);
+  logger.debug(`Added a block - chain size is now ${chain.size}`);
 }
 
 function addTransaction(transaction){
@@ -62,12 +61,17 @@ function addTransaction(transaction){
       blockSize: pendingTransactions.length,
       timestamp: Date.now(),
       previousHash: currentBlock.hash,
+      height: currentBlock.height + 1,
       transactions: [...pendingTransactions],
     });
     // Add the block to the chain
     addBlock(currentBlock);
   }
   return true;
+}
+
+function getLatestBlock() {
+  return currentBlock;
 }
 
 // Getting the balance of tokens at an address involves iterating over the entire chain
@@ -88,6 +92,14 @@ function getAccountBalance(account){
     }
   }
   return balance;
+}
+
+function findBlock(hash) {
+  let blk = chain.get(hash);
+  if(!blk) {
+    return {}
+  }
+  return blk;
 }
 
 // Returns true if the header is valid
@@ -130,15 +142,18 @@ function blockchain({genesisNode, difficulty = DEFAULT_DIFFICULTY, reward = DEAF
   initialDifficulty = difficulty;
   currentBlock = createGenesisBlock();
   chain = new Map();
+  chain.set(currentBlock.hash, currentBlock);
   let api = {
     difficulty: initialDifficulty,
     miningReward: reward,
     chain: chain,
-    currentBlock: currentBlock,
+    getLatestBlock: getLatestBlock,
     addTransaction: addTransaction,
+    addBlock: addBlock,
     getAccountBalance: getAccountBalance,
     validateBlock: validateBlock,
     validateChain: validateChain,
+    findBlock: findBlock,
   }
   return api;
 }

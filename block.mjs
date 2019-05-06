@@ -1,18 +1,26 @@
 import pino from 'pino';
 const logger = pino({
-  prettyPrint: { colorize: true }
+  prettyPrint: { colorize: true },
+  level: 'debug',
 });
-logger.level = 'debug';
-import SHA256 from 'crypto-js/sha256';
+import transaction from './transaction';
+import crypto from 'crypto';
 
+/*
 function calculateHash(block) {
   return SHA256(block.previousHash + block.timestamp + JSON.stringify(block.transactions) + block.nonce).toString();
+} */
+
+function calculateHash(block) {
+  const hash = crypto.createHash('sha256');
+  hash.update(block.previousHash + block.timestamp + JSON.stringify(block.transactions) + block.nonce + block.height);
+  return hash.digest('hex');
 }
 
 function mineBlock(block) {
   // Make sure hash has "difficulty" leading zeroes
   block.hash = '';
-  block.nonce = 0;
+  block.nonce = Math.floor(Math.random() * 20000);
   while (block.hash.substring(0, block.difficulty) !== Array(block.difficulty + 1).join("0")) {
     //    while(BigInt('0x' + this.hash) >= 0x0000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn) {
     block.nonce++;
@@ -37,20 +45,56 @@ function addTransaction(bc, transaction) {
 function mintCoin(bc, transaction) {
 }
 
+function serialize(blk) {
+  let transactions = [];
+  for(let tx of blk.transactions) {
+    transactions.push(tx.serialize());
+  }
+  return {
+    difficulty: blk.difficulty,
+    blockSize: blk.blockSize,
+    timestamp: blk.timestamp,
+    previousHash: blk.previousHash,
+    height: blk.height,
+    transactions: transactions,
+    nonce: blk.nonce,
+    hash: blk.hash,
+  }
+}
 
-function block({difficulty = 1, blockSize = 0, timestamp, previousHash = '', transactions}) {
+function block({difficulty = 1, blockSize = 0, timestamp, hash = '', previousHash = '', height, transactions}) {
+  logger.debug(`Block height: ${height}`);
   let api = {
     difficulty: difficulty,
     blockSize: blockSize,
     timestamp: timestamp,
     previousHash: previousHash,
+    height: height,
     transactions: transactions,
     nonce: 0,
-    hash: '',
+    hash: hash,
     mineBlock: mineBlock,
     calculateHash: calculateHash,
+    serialize: serialize,
+
+    deserialize: function(blk) {
+      this.transactions = blk.transactions;   // Q: This is a reference - should it be copied?
+      for(let tx of this.transactions) {
+        tx = transaction(tx);
+        tx.deserialize(tx);
+      }
+      this.difficulty = blk.difficulty;
+      this.blockSize = blk.blockSize;
+      this.timestamp = blk.timestamp;
+      this.previousHash = blk.previousHash;
+      this.height = blk.height;
+      this.nonce = blk.nonce;
+      this.hash = blk.hash;
+    },
   };
-  mineBlock(api);
+  if(hash === '') {
+    mineBlock(api);
+  }
 
   return api;
 }

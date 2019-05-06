@@ -1,11 +1,16 @@
 import pino from 'pino';
 const logger = pino({
-  prettyPrint: { colorize: true }
+  prettyPrint: { colorize: true },
+  level: 'info',
 });
-logger.level = 'info';
 import uuid from 'uuid';
 import axios from 'axios';
+import crypto from 'crypto';
+import QuickLRU from 'quick-lru';
+
 import { transaction, block } from './bc';
+
+const sentMsgCache = new QuickLRU({maxSize: 1000});
 
 const HEARTBEAT_PERIOD = 3 * 1000;
 const NODE_TIMEOUT = 10 * 1000;
@@ -16,7 +21,6 @@ let id = uuid(),
   seeds= [];
 
 function updateNodeList(request) {
-      logger.debug(request.body);
       let newNodeList = new Map(Object.entries(request.body));
       // Merge the two nodeLists to create the latest set of information
       for(let [key, newNode] of newNodeList) {
@@ -33,22 +37,33 @@ function updateNodeList(request) {
       }
     }
 
-// Send a message to all of the nodes in the network
+// Send a message to all of the nodes in the network, except ourself and the origin
 //
-async function send(msg) {
+async function send(msg, endPoint, origin = 0) {
+  // Create a hash of the message
+  const hash = crypto.createHash('sha256');
+  hash.update(JSON.stringify(msg));
+  const digest = hash.digest('hex');
+  let ports = [origin];
+  if(sentMsgCache.has(digest)) {
+    ports = sentMsgCache.get(digest);
+  }
+  // 
   for(let [key, node] of nodeList) {
-    if(key !== id) {            // Don't send to ourself
-      let url = `http://localhost:${node.port}/transaction`;
+    if((key !== id) || (ports.find(port => port === node.port))) {            // Don't send to ourself
+      let url = `http://localhost:${node.port}/${endPoint}`;
+      logger.debug(`Send to ${url}`);
       try {
         let response = await axios.post(url, msg);
         let data = response.data;          // Might want to check for ACK?
-        response = true;
+        ports.push(node.port);
       }
       catch(err) {
         logger.error(err);
       }
     }
   }
+  sentMsgCache.set(digest, ports);
 }
 
 // Send the list of active nodes to all other nodes
@@ -93,8 +108,15 @@ async function sendNodeList() {
 }
 
 async function sendTransaction(tx) {
+  send(tx.serialize(), 'transaction', 0);
+}
+
+async function sendBlock(block) {
+  send(block.serialize(block), 'block', 0);
+}
+
+async function XsendTransaction(tx) {
   for(let [key, node] of nodeList) {
-    debugger;
     // Don't send to ourself or repeat
     if(key !== id && !tx.nodePorts.find((port) => port === node.port)) {
       let url = `http://localhost:${node.port}/transaction`;
@@ -139,6 +161,7 @@ function node(initSeeds) {
     updateNodeList: updateNodeList,
     send: send,
     sendTransaction: sendTransaction,
+    sendBlock: sendBlock,
   };
 
   seeds = initSeeds || [];

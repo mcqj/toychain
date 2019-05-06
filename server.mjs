@@ -24,17 +24,40 @@ function updateTransactions(request) {
   tx.deserialize(tx);
   logger.debug(JSON.stringify(tx));
   // If we already have the transaction, we won't add it and therefore won't send it
+  let height = toyChain.getLatestBlock().height;
+  logger.debug(`Height ${height}`);
   if(toyChain.addTransaction(tx)) {
     node.sendTransaction(tx);
     logger.debug('Send transaction');
   }
+  let latestBlock = toyChain.getLatestBlock();
+  if(latestBlock.height > height) {
+    node.sendBlock(latestBlock);
+  }
 }
 
+// A new block is being proposed, update the chain if valid
 function updateChain(request) {
   logger.debug('Update chain');
+  let blk = block(request.body);
+  blk.deserialize(blk);
+  if(toyChain.addBlock(blk)) {
+    node.sendBlock(blk);
+  }
 }
 
 // Declare routes
+fastify.get('/status', async(request, reply) => {
+  return {
+    height: toyChain.getLatestBlock().height,
+    latestBlock: toyChain.getLatestBlock().hash,
+  };
+});
+
+fastify.get('/block/:hash', async(request, reply) => {
+  return toyChain.findBlock(request.params.hash);
+});
+
 fastify.post('/nodelist', async(request, reply) => {
   node.updateNodeList(request);
   return {};
@@ -47,6 +70,7 @@ fastify.post('/transaction', async(request, reply) => {
 
 fastify.post('/block', async(request, reply) => {
   updateChain(request);
+  return {};
 });
 
 // Run the server!

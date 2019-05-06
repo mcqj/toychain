@@ -1,8 +1,8 @@
 import pino from 'pino';
 const logger = pino({
-  prettyPrint: { colorize: true }
+  prettyPrint: { colorize: true },
+  level: 'debug',
 });
-logger.level = 'debug';
 import nacl from 'tweetnacl';
 import nacl_util from 'tweetnacl-util';
 import { TextEncoder, TextDecoder } from 'util';
@@ -28,7 +28,6 @@ function transaction({from, to, amount, publicKey, signature = '', salt = ''}) {
     validate: function() {
       const encoder = new TextEncoder();
       let vmsgArray = encoder.encode('' + this.from + this.to + this.salt + this.amount + this.publicKey);
-      logger.debug(`Types are: ${typeof(vmsgArray)} ${typeof(this.signature)} ${typeof(publicKey)}`);
       return  nacl.sign.detached.verify(vmsgArray, this.signature, this.publicKey);
     },
 
