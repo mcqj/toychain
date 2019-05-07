@@ -51,6 +51,8 @@ fastify.get('/status', async(request, reply) => {
   return {
     height: toyChain.getLatestBlock().height,
     latestBlock: toyChain.getLatestBlock().hash,
+    nodeList: Array.from(node.getNodeList()),
+    peerList: Array.from(node.getPeerList()),
   };
 });
 

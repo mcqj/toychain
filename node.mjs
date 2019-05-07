@@ -12,30 +12,32 @@ import { transaction, block } from './bc';
 
 const sentMsgCache = new QuickLRU({maxSize: 1000});
 
+const PEER_COUNT = 3;
 const HEARTBEAT_PERIOD = 3 * 1000;
 const NODE_TIMEOUT = 10 * 1000;
 
 let id = uuid(),
   nodeListUpdated = false,
   nodeList = new Map(),
-  seeds= [];
+  seeds = [],
+  peerList = new Map();
 
 function updateNodeList(request) {
-      let newNodeList = new Map(Object.entries(request.body));
-      // Merge the two nodeLists to create the latest set of information
-      for(let [key, newNode] of newNodeList) {
-        let node = nodeList.get(key);
-        if(node) {
-          if(newNode.timestamp > node.timestamp) {
-            node.timestamp = newNode.timestamp;
-            nodeListUpdated = true;     // Mark as updated
-          }
-        } else if(newNode.timestamp + NODE_TIMEOUT > Date.now()) {
-          nodeList.set(key, newNode);
-          nodeListUpdated = true;       // Mark as updated
-        }
+  let newNodeList = new Map(Object.entries(request.body));
+  // Merge the two nodeLists to create the latest set of information
+  for(let [key, newNode] of newNodeList) {
+    let node = nodeList.get(key);
+    if(node) {
+      if(newNode.timestamp > node.timestamp) {
+        node.timestamp = newNode.timestamp;
+        nodeListUpdated = true;     // Mark as updated
       }
+    } else if(newNode.timestamp + NODE_TIMEOUT > Date.now()) {
+      nodeList.set(key, newNode);
+      nodeListUpdated = true;       // Mark as updated
     }
+  }
+}
 
 // Send a message to all of the nodes in the network, except ourself and the origin
 //
@@ -49,7 +51,7 @@ async function send(msg, endPoint, origin = 0) {
     ports = sentMsgCache.get(digest);
   }
   // 
-  for(let [key, node] of nodeList) {
+  for(let [key, node] of peerList) {
     if((key !== id) || (ports.find(port => port === node.port))) {            // Don't send to ourself
       let url = `http://localhost:${node.port}/${endPoint}`;
       logger.debug(`Send to ${url}`);
@@ -65,6 +67,33 @@ async function send(msg, endPoint, origin = 0) {
   }
   sentMsgCache.set(digest, ports);
 }
+
+// Select a set of peers to send msgs to
+function selectPeers() {
+  // NB - our own ID will be in the nodeList - hence "nodeList - 1" below
+  if(peerList.size >= PEER_COUNT || peerList.size >= nodeList.size - 1) {
+    // Delete a single random peer so that new nodes have a chance
+    let peerArray = Array.from(peerList);
+    peerList.delete(peerArray[Math.floor(Math.random() * peerArray.length)][0]);
+  }
+  let additions = PEER_COUNT - peerList.size;
+  if((nodeList.size - 1) < PEER_COUNT) {
+    additions = nodeList.size - 1 - peerList.size;
+  }
+  let nodeArray = Array.from(nodeList);
+  while(additions > 0) {
+    // Find a node that isn't in the peer list and add it
+    let index = Math.floor(Math.random() * nodeArray.length);
+    let key = nodeArray[index][0];
+    let val = nodeArray[index][1];
+    if(key !== id && !peerList.has(key)) {
+      peerList.set(key, val);
+      additions--;
+      continue;
+    }
+  }
+}
+
 
 // Send the list of active nodes to all other nodes
 //
@@ -91,8 +120,12 @@ async function sendNodeList() {
       }
     }
     for(let [key, node] of nodeRemovalList) {
+      if(peerList.has(key)) {
+        peerList.delete(key);
+      }
       nodeList.delete(key);
     }
+    selectPeers();
   }
   if(!response) {   // if none of the nodes in the list respond, try contacting seeds
     for(let i = 0, len = seeds.length; i < len; i++) {
@@ -105,6 +138,15 @@ async function sendNodeList() {
       }
     }
   }
+  nodeListUpdated = false;
+}
+
+function getNodeList() {
+  return nodeList;
+}
+
+function getPeerList() {
+  return peerList;
 }
 
 async function sendTransaction(tx) {
@@ -156,8 +198,9 @@ function heartbeat() {
 function node(initSeeds) {
   let api = {
     id: id,
-    nodeList: nodeList,
     start: start,
+    getNodeList: getNodeList,
+    getPeerList: getPeerList,
     updateNodeList: updateNodeList,
     send: send,
     sendTransaction: sendTransaction,
