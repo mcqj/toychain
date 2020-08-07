@@ -3,12 +3,12 @@ const logger = pino({
   prettyPrint: { colorize: true },
   level: 'info',
 });
-import uuid from 'uuid';
+import { v4 as uuid } from 'uuid';
 import axios from 'axios';
 import crypto from 'crypto';
 import QuickLRU from 'quick-lru';
 
-import { transaction, block } from './bc';
+import { transaction, block } from './bc.mjs';
 
 const sentMsgCache = new QuickLRU({maxSize: 1000});
 

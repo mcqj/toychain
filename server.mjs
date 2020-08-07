@@ -6,7 +6,7 @@ const logger = pino({
   level: 'debug',
 });
 import fastifyM from 'fastify';
-import nodeM from './node';
+import nodeM from './node.mjs';
 import { transaction, block, blockchain } from './bc.mjs';
 
 const fastify = fastifyM({

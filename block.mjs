@@ -3,8 +3,8 @@ const logger = pino({
   prettyPrint: { colorize: true },
   level: 'debug',
 });
-import transaction from './transaction';
 import crypto from 'crypto';
+import transaction from './transaction.mjs';
 
 /*
 function calculateHash(block) {

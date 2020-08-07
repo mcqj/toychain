@@ -3,8 +3,8 @@ const logger = pino({
   prettyPrint: { colorize: true }
 });
 logger.level = 'debug';
-import transaction from './transaction';
-import block from './block';
+import transaction from './transaction.mjs';
+import block from './block.mjs';
 
 const DEFAULT_REWARD = 10;
 const DEFAULT_DIFFICULTY = 3;
