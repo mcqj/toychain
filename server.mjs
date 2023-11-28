@@ -1,13 +1,15 @@
 import pino from 'pino';
-const logger = pino({
-  prettyPrint: {
-    colorize: true
-  },
-  level: 'debug',
-});
 import fastifyM from 'fastify';
 import nodeM from './node.mjs';
 import { transaction, block, blockchain } from './bc.mjs';
+
+const transport = pino.transport({
+  target: 'pino-pretty',
+  options: { colorize: true }
+});
+const logger = pino({
+  level: 'debug',
+}, transport);
 
 const fastify = fastifyM({
   logger: {

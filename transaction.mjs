@@ -1,11 +1,15 @@
 import pino from 'pino';
-const logger = pino({
-  prettyPrint: { colorize: true },
-  level: 'debug',
-});
 import nacl from 'tweetnacl';
 import nacl_util from 'tweetnacl-util';
 import { TextEncoder, TextDecoder } from 'util';
+
+const transport = pino.transport({
+  target: 'pino-pretty',
+  options: { colorize: true }
+});
+const logger = pino({
+  level: 'debug',
+}, transport);
 
 function transaction({from, to, amount, publicKey, signature = '', salt = ''}) {
 

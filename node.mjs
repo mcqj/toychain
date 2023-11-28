@@ -1,14 +1,18 @@
 import pino from 'pino';
-const logger = pino({
-  prettyPrint: { colorize: true },
-  level: 'info',
-});
 import { v4 as uuid } from 'uuid';
 import axios from 'axios';
 import crypto from 'crypto';
 import QuickLRU from 'quick-lru';
 
 import { transaction, block } from './bc.mjs';
+
+const transport = pino.transport({
+  target: 'pino-pretty',
+  options: { colorize: true }
+});
+const logger = pino({
+  level: 'debug',
+}, transport);
 
 const sentMsgCache = new QuickLRU({maxSize: 1000});
 

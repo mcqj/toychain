@@ -1,10 +1,14 @@
 import pino from 'pino';
-const logger = pino({
-  prettyPrint: { colorize: true },
-  level: 'debug',
-});
 import crypto from 'crypto';
 import transaction from './transaction.mjs';
+
+const transport = pino.transport({
+  target: 'pino-pretty',
+  options: { colorize: true }
+});
+const logger = pino({
+  level: 'debug',
+}, transport);
 
 /*
 function calculateHash(block) {

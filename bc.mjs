@@ -1,10 +1,14 @@
 import pino from 'pino';
-const logger = pino({
-  prettyPrint: { colorize: true }
-});
-logger.level = 'debug';
 import transaction from './transaction.mjs';
 import block from './block.mjs';
+
+const transport = pino.transport({
+  target: 'pino-pretty',
+  options: { colorize: true }
+});
+const logger = pino({
+  level: 'debug',
+}, transport);
 
 const DEFAULT_REWARD = 10;
 const DEFAULT_DIFFICULTY = 3;
