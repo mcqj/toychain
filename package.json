@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "server": "node server.mjs",
-    "testClient": "node testClient.mjs"
+    "testClient": "node testClient.mjs",
+    "lint": "eslint ."
   },
   "keywords": [],
   "author": "John Mc Quillan <john.mcq1llan@gmail.com>",
@@ -21,5 +22,10 @@
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1",
     "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0"
   }
 }
